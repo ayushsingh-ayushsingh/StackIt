@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 // POST /api/answers/[id]/accept - Accept an answer
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -16,7 +16,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const answerId = params.id;
+    const answerId = (await params).id;
 
     // Get user profile
     const userProfile = await prisma.userProfile.findUnique({

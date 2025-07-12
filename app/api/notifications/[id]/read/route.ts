@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 // POST /api/notifications/[id]/read - Mark notification as read
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -16,7 +16,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const notificationId = params.id;
+    const notificationId = (await params).id;
 
     // Get user profile
     const userProfile = await prisma.userProfile.findUnique({

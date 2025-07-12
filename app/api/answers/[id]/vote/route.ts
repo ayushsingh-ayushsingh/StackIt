@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 // POST /api/answers/[id]/vote - Vote on an answer
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -23,7 +23,7 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid vote type' }, { status: 400 });
     }
 
-    const answerId = params.id;
+    const answerId = (await params).id;
 
     // Get user profile
     const userProfile = await prisma.userProfile.findUnique({

@@ -23,7 +23,11 @@ function ensureHtml(answer: string): string {
     if (/<[a-z][\s\S]*>/i.test(answer.trim())) {
         return answer;
     }
-    return marked.parse(answer);
+    // Use parseSync if available, otherwise cast parse as string
+    if (typeof (marked as { parseSync?: unknown }).parseSync === 'function') {
+        return (marked as unknown as { parseSync: (input: string) => string }).parseSync(answer);
+    }
+    return marked.parse(answer) as string;
 }
 
 export async function generateAnswer(question: string): Promise<QuestionAnswer> {
