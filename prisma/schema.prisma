@@ -1,0 +1,137 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model UserProfile {
+  id        String   @id @default(uuid())
+  clerkId   String   @unique // Clerk's user ID
+  username  String   @unique
+  role      Role     @default(USER)
+  avatarUrl String?
+  bio       String?
+  createdAt DateTime @default(now())
+
+  questions     Question[]
+  answers       Answer[]
+  votes         Vote[]
+  notifications Notification[]
+  adminLogs     AdminActionLog[]
+}
+
+model Question {
+  id          String   @id @default(uuid())
+  title       String
+  description Json // Stored as rich text (e.g., TipTap)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  authorId String
+  author   UserProfile @relation(fields: [authorId], references: [id])
+
+  answers          Answer[]
+  tags             QuestionTag[]
+  acceptedAnswer   Answer?       @relation("AcceptedAnswer", fields: [acceptedAnswerId], references: [id])
+  acceptedAnswerId String?       @unique
+}
+
+model Answer {
+  id        String   @id @default(uuid())
+  content   Json // Rich text editor content
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  authorId   String
+  questionId String
+
+  author   UserProfile @relation(fields: [authorId], references: [id])
+  question Question    @relation(fields: [questionId], references: [id])
+
+  votes      Vote[]
+  acceptedBy Question? @relation("AcceptedAnswer")
+
+  upvotes   Int @default(0)
+  downvotes Int @default(0)
+}
+
+model Vote {
+  id        String   @id @default(uuid())
+  voteType  VoteType
+  createdAt DateTime @default(now())
+
+  userId   String
+  answerId String
+
+  user   UserProfile @relation(fields: [userId], references: [id])
+  answer Answer      @relation(fields: [answerId], references: [id])
+
+  @@unique([userId, answerId]) // Prevent double voting
+}
+
+model Tag {
+  id   String @id @default(uuid())
+  name String @unique
+
+  questions QuestionTag[]
+}
+
+model QuestionTag {
+  questionId String
+  tagId      String
+
+  question Question @relation(fields: [questionId], references: [id])
+  tag      Tag      @relation(fields: [tagId], references: [id])
+
+  @@id([questionId, tagId]) // Composite key
+}
+
+model Notification {
+  id          String           @id @default(uuid())
+  type        NotificationType
+  message     String
+  read        Boolean          @default(false)
+  referenceId String?
+  createdAt   DateTime         @default(now())
+
+  userId String
+  user   UserProfile @relation(fields: [userId], references: [id])
+}
+
+model AdminActionLog {
+  id        String   @id @default(uuid())
+  action    String
+  targetId  String?
+  details   String?
+  timestamp DateTime @default(now())
+
+  adminId String
+  admin   UserProfile @relation(fields: [adminId], references: [id])
+}
+
+enum Role {
+  GUEST
+  USER
+  ADMIN
+}
+
+enum VoteType {
+  UPVOTE
+  DOWNVOTE
+}
+
+enum NotificationType {
+  ANSWER
+  COMMENT
+  MENTION
+}
