@@ -6,6 +6,29 @@ const prisma = new PrismaClient();
 type User = { id: string };
 type Tag = { id: string };
 
+const createDefaultUser = async (): Promise<User> => {
+    // Check if default user already exists
+    const existingUser = await prisma.userProfile.findUnique({
+        where: { id: 'default-author-id' }
+    });
+
+    if (existingUser) {
+        return existingUser;
+    }
+
+    // Create default user if it doesn't exist
+    return prisma.userProfile.create({
+        data: {
+            id: 'default-author-id',
+            clerkId: 'default-clerk-id',
+            username: 'Demo User',
+            avatarUrl: faker.image.avatar(),
+            bio: 'Default user for demo questions',
+            role: 'USER',
+        },
+    });
+};
+
 const createFakeUsers = async (count = 10): Promise<User[]> => {
     return Promise.all(
         Array.from({ length: count }).map(() =>
@@ -131,6 +154,10 @@ async function main() {
     await prisma.question.deleteMany();
     await prisma.tag.deleteMany();
     await prisma.userProfile.deleteMany();
+
+    // Create default user first
+    const defaultUser = await createDefaultUser();
+    console.log('✅ Default user created:', defaultUser.id);
 
     const users = await createFakeUsers(10);
     const tags = await createFakeTags();

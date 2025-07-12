@@ -5,7 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import AskQuestionModal from './AskQuestionModal';
 
-export default function AskQuestionButton() {
+interface AskQuestionButtonProps {
+  onQuestionSubmitted?: () => void;
+}
+
+export default function AskQuestionButton({ onQuestionSubmitted }: AskQuestionButtonProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleOpenModal = () => {
@@ -14,6 +18,11 @@ export default function AskQuestionButton() {
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
+  };
+
+  const handleQuestionSubmitted = () => {
+    handleCloseModal();
+    onQuestionSubmitted?.();
   };
 
   return (
@@ -28,7 +37,7 @@ export default function AskQuestionButton() {
       
       <AskQuestionModal 
         isOpen={isModalOpen} 
-        onClose={handleCloseModal} 
+        onClose={handleQuestionSubmitted} 
       />
     </>
   );

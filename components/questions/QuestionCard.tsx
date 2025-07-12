@@ -2,6 +2,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { MessageCircle, User } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 
 interface Question {
   id: string;
@@ -51,9 +52,11 @@ export default function QuestionCard({ question, showFullContent = false }: Ques
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
-        <h3 className="text-lg font-semibold text-foreground line-clamp-2 leading-tight">
-          {question.title}
-        </h3>
+        <Link href={`/questions/${question.id}`} className="block">
+          <h3 className="text-lg font-semibold text-foreground line-clamp-2 leading-tight hover:text-primary transition-colors">
+            {question.title}
+          </h3>
+        </Link>
       </CardHeader>
       
       <CardContent className="space-y-4">

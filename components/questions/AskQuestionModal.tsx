@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -15,7 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, X } from 'lucide-react';
+import { Loader2, X, Bot, Sparkles } from 'lucide-react';
+import RichTextEditor from '@/components/ui/rich-text-editor';
 
 interface Tag {
   id: string;
@@ -29,11 +29,13 @@ interface AskQuestionModalProps {
 
 export default function AskQuestionModal({ isOpen, onClose }: AskQuestionModalProps) {
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState<any>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<string>('');
+  const [aiLoading, setAiLoading] = useState(false);
 
   // Load available tags when modal opens
   useEffect(() => {
@@ -65,10 +67,61 @@ export default function AskQuestionModal({ isOpen, onClose }: AskQuestionModalPr
     );
   };
 
+  const handleAskAI = async () => {
+    if (!title.trim()) {
+      alert('Please enter a question title first');
+      return;
+    }
+
+    try {
+      setAiLoading(true);
+      setAiSuggestion('');
+
+      const response = await fetch('/api/ai/answer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question: title }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAiSuggestion(data.answer);
+      } else {
+        setAiSuggestion('Sorry, I could not generate a suggestion at this time.');
+      }
+    } catch (error) {
+      console.error('Error asking AI:', error);
+      setAiSuggestion('Sorry, I encountered an error while generating a suggestion.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleUseAISuggestion = () => {
+    if (aiSuggestion) {
+      setDescription({
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [
+              {
+                type: 'text',
+                text: aiSuggestion
+              }
+            ]
+          }
+        ]
+      });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!title.trim() || !description.trim()) {
+    if (!title.trim() || !description) {
       alert('Please fill in all required fields');
       return;
     }
@@ -78,20 +131,7 @@ export default function AskQuestionModal({ isOpen, onClose }: AskQuestionModalPr
       
       const questionData = {
         title: title.trim(),
-        description: {
-          type: 'doc',
-          content: [
-            {
-              type: 'paragraph',
-              content: [
-                {
-                  type: 'text',
-                  text: description.trim()
-                }
-              ]
-            }
-          ]
-        },
+        description: description,
         tags: selectedTags
       };
 
@@ -108,9 +148,9 @@ export default function AskQuestionModal({ isOpen, onClose }: AskQuestionModalPr
         setTitle('');
         setDescription('');
         setSelectedTags([]);
+        setAiSuggestion('');
         onClose();
-        // Optionally refresh the questions list
-        window.location.reload();
+        // The questions list will be refreshed automatically by the parent component
       } else {
         const error = await response.json();
         alert(`Error: ${error.message || 'Failed to submit question'}`);
@@ -126,8 +166,9 @@ export default function AskQuestionModal({ isOpen, onClose }: AskQuestionModalPr
   const handleClose = () => {
     if (!submitting) {
       setTitle('');
-      setDescription('');
+      setDescription(null);
       setSelectedTags([]);
+      setAiSuggestion('');
       onClose();
     }
   };
@@ -162,18 +203,66 @@ export default function AskQuestionModal({ isOpen, onClose }: AskQuestionModalPr
             </p>
           </div>
 
+          {/* AI Suggestion */}
+          {title.trim() && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">AI Suggestion</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAskAI}
+                  disabled={aiLoading || submitting}
+                  className="h-8"
+                >
+                  {aiLoading ? (
+                    <>
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      AI...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      Get AI Help
+                    </>
+                  )}
+                </Button>
+              </div>
+              {aiSuggestion && (
+                <Card className="border-l-4 border-l-blue-500">
+                  <CardContent className="pt-4">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      AI suggestion for your question:
+                    </p>
+                    <p className="text-sm whitespace-pre-wrap mb-3">
+                      {aiSuggestion}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleUseAISuggestion}
+                      disabled={submitting}
+                    >
+                      Use This Suggestion
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
           {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="description" className="text-sm font-medium">
               Description *
             </Label>
-            <Textarea
-              id="description"
+            <RichTextEditor
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={setDescription}
               placeholder="Provide more context about your question..."
-              disabled={submitting}
-              className="min-h-[120px] resize-vertical"
+              className="min-h-[200px]"
             />
           </div>
 
@@ -252,7 +341,7 @@ export default function AskQuestionModal({ isOpen, onClose }: AskQuestionModalPr
           </Button>
           <Button
             type="submit"
-            disabled={submitting || !title.trim() || !description.trim()}
+            disabled={submitting || !title.trim() || !description}
             onClick={handleSubmit}
             className="w-full sm:w-auto"
           >

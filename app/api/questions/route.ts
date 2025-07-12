@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 
 export async function GET(request: Request) {
@@ -118,6 +119,15 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const { userId } = await auth();
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { title, description, tags } = body;
 
@@ -129,16 +139,28 @@ export async function POST(request: Request) {
       );
     }
 
-    // For now, we'll use a default author ID since we don't have authentication
-    // In a real app, you'd get this from the authenticated user
-    const defaultAuthorId = 'default-author-id'; // This should come from auth
+    // Get or create user profile for the authenticated user
+    let userProfile = await prisma.userProfile.findUnique({
+      where: { clerkId: userId }
+    });
+
+    if (!userProfile) {
+      // Create user profile if it doesn't exist
+      userProfile = await prisma.userProfile.create({
+        data: {
+          clerkId: userId,
+          username: `user_${userId.slice(0, 8)}`, // Generate a username from clerk ID
+          role: 'USER',
+        }
+      });
+    }
 
     // Create the question
     const question = await prisma.question.create({
       data: {
         title: title.trim(),
         description: description,
-        authorId: defaultAuthorId,
+        authorId: userProfile.id,
         tags: {
           create: tags.map((tagId: string) => ({
             tag: {
@@ -163,6 +185,8 @@ export async function POST(request: Request) {
       }
     });
 
+    console.log('Question created successfully:', question.id);
+
     return NextResponse.json({
       message: 'Question created successfully',
       question: {
@@ -178,10 +202,26 @@ export async function POST(request: Request) {
       }
     }, { status: 201 });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating question:', error);
+    
+    // Provide more specific error messages
+    if (error.code === 'P2003') {
+      return NextResponse.json(
+        { error: 'Invalid author or tag reference' },
+        { status: 400 }
+      );
+    }
+    
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Question with this title already exists' },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to create question' },
+      { error: 'Failed to create question. Please try again.' },
       { status: 500 }
     );
   }

@@ -72,7 +72,7 @@ export default function SearchBar({
         <Button 
           type="submit" 
           variant="outline" 
-          className="ml-2 mt-2 sm:mt-0 w-full sm:w-auto"
+          className="mt-2 w-full sm:w-auto"
           disabled={loading}
         >
           Search
